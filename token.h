@@ -1,0 +1,72 @@
+#ifndef TOKEN_H
+#define TOKEN_H
+
+#include <string>
+#include <ostream>
+
+using namespace std;
+
+class Token {
+public:
+    // Tipos de token
+    enum Type {
+        // Operadores
+        PLUS,    // +
+        MINUS,   // -
+        MUL,     // *
+        DIV,     // /
+        INC,     // ++
+        GT,      // >
+        LT,      // <
+        GE,      // >=
+        LE,      // <=
+        EQ,      // ==
+        NE,      // !=
+        POW,     // **
+        ASSIGN,  // =
+
+        // Símbolos
+        LPAREN,  // (
+        RPAREN,  // )
+        LBRACE,  // {
+        RBRACE,  // }
+        SEMICOL, // ;
+        COMMA,   // ,
+        HASH,    // #
+
+        // Palabras clave
+        INT,    // int
+        LONG,    // long
+        IF,      // if
+        ELSE,    // else
+        FOR,     // for
+        RETURN,  // return
+        INCLUDE, // include
+        PRINTF,  // printf
+
+        // Identificadores y literales
+        ID,      // ID
+        NUM,     // Número
+        STRING,  // cadenas ("...")
+        FORMAT,  // especificadores formato (%d, %ld)
+
+        // Especiales
+        ERR,     // Error
+        END,     // Fin de entrada
+    };
+
+    // Atributos
+    Type type;
+    string text;
+
+    // Constructores
+    Token(Type type);
+    Token(Type type, char c);
+    Token(Type type, const string& source, int first, int last);
+
+    // Sobrecarga de operadores de salida
+    friend ostream& operator<<(ostream& outs, const Token& tok);
+    friend ostream& operator<<(ostream& outs, const Token* tok);
+};
+
+#endif // TOKEN_H
