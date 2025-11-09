@@ -123,9 +123,12 @@ Token* Scanner::nextToken() {
 
         // Palabras clave
         if (lexema == "int") return new Token(Token::INT, input, first, current - first);
+        else if (lexema == "true") return new Token(Token::TRUE, input, first, current - first);
+        else if (lexema == "false") return new Token(Token::FALSE, input, first, current - first);
         else if (lexema == "long") return new Token(Token::LONG, input, first, current - first);
         else if (lexema == "if") return new Token(Token::IF, input, first, current - first);
         else if (lexema == "else") return new Token(Token::ELSE, input, first, current - first);
+        else if (lexema == "while") return new Token(Token::WHILE, input, first, current - first);
         else if (lexema == "for") return new Token(Token::FOR, input, first, current - first);
         else if (lexema == "return") return new Token(Token::RETURN, input, first, current - first);
         else if (lexema == "include") return new Token(Token::INCLUDE, input, first, current - first);

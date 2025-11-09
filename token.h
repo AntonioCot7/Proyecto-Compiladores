@@ -10,6 +10,10 @@ class Token {
 public:
     // Tipos de token
     enum Type {
+        // Literales booleanos
+        TRUE,    // true
+        FALSE,   // false
+
         // Operadores
         PLUS,    // +
         MINUS,   // -
@@ -22,9 +26,8 @@ public:
         LE,      // <=
         EQ,      // ==
         NE,      // !=
-        POW,     // **
         ASSIGN,  // =
-
+        
         // Símbolos
         LPAREN,  // (
         RPAREN,  // )
@@ -39,6 +42,7 @@ public:
         LONG,    // long
         IF,      // if
         ELSE,    // else
+        WHILE,   // while
         FOR,     // for
         RETURN,  // return
         INCLUDE, // include

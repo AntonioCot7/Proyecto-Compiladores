@@ -15,14 +15,16 @@ private:
 public:
     Parser(Scanner* scanner);       
     Program* parseProgram();
+    Include* parseInclude();
+    VarDec* parseVarDec();
+    InstanceDec* paserInstanceDec();
     FunDec* parseFunDec();
     Body* parseBody();
-    VarDec* parseVarDec();
     Stm* parseStm();
     Exp* parseCE();
     Exp* parseBE();
     Exp* parseE();
-    Exp* parseT();
+    //Exp* parseT();
     Exp* parseF();
 };
 

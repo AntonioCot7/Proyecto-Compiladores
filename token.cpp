@@ -23,6 +23,10 @@ Token::Token(Type type, const string& source, int first, int last)
 // Para Token por referencia
 ostream& operator<<(ostream& outs, const Token& tok) {
     switch (tok.type) {
+        // Literales booleanos
+        case Token::TRUE:    outs << "TOKEN(TRUE, \""    << tok.text << "\")"; break;
+        case Token::FALSE:   outs << "TOKEN(FALSE, \""   << tok.text << "\")"; break;
+
         // Operadores
         case Token::PLUS:    outs << "TOKEN(PLUS, \""    << tok.text << "\")"; break;
         case Token::MINUS:   outs << "TOKEN(MINUS, \""   << tok.text << "\")"; break;
@@ -51,6 +55,7 @@ ostream& operator<<(ostream& outs, const Token& tok) {
         case Token::LONG:    outs << "TOKEN(LONG, \""    << tok.text << "\")"; break;
         case Token::IF:      outs << "TOKEN(IF, \""      << tok.text << "\")"; break;
         case Token::ELSE:    outs << "TOKEN(ELSE, \""    << tok.text << "\")"; break;
+        case Token::WHILE:   outs << "TOKEN(WHILE, \""   << tok.text << "\")"; break;
         case Token::FOR:     outs << "TOKEN(FOR, \""     << tok.text << "\")"; break;
         case Token::RETURN:  outs << "TOKEN(RETURN, \""  << tok.text << "\")"; break;
         case Token::INCLUDE: outs << "TOKEN(INCLUDE, \"" << tok.text << "\")"; break;

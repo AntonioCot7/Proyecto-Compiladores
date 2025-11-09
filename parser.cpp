@@ -57,76 +57,133 @@ bool Parser::isAtEnd() {
 
 Program* Parser::parseProgram() {
     Program* p = new Program();
-    if(check(Token::VAR)) {
-        p->vdlist.push_back(parseVarDec());
+
+    if (match(Token::HASH)) {
+        p->includes.push_back(parseInclude());
         while(match(Token::SEMICOL)) {
-            if(check(Token::VAR)) {
-                p->vdlist.push_back(parseVarDec());
+            if(check(Token::HASH)) {
+                match(Token::HASH);
+                p->includes.push_back(parseInclude());
             }
         }
     }
-    if(check(Token::FUN)) {
-        p->fdlist.push_back(parseFunDec());
-        while(check(Token::FUN)){
-                p->fdlist.push_back(parseFunDec());
+
+    if (check(Token::INT) || check(Token::LONG)) {
+        p->vdlist.push_back(parseVarDec());
+        while(match(Token::SEMICOL)) {
+            if(check(Token::INT) || check(Token::LONG)) {
+                p->vdlist.push_back(parseVarDec());
             }
         }
+        
+    }
+
+    if (check(Token::INT) || check(Token::LONG)) {
+        p->intdlist.push_back(paserInstanceDec());
+        while(match(Token::SEMICOL)) {
+            if(check(Token::INT) || check(Token::LONG)) {
+                p->intdlist.push_back(paserInstanceDec());
+            }
+        }
+    }
+
+    if (check(Token::INT) || check(Token::LONG)) {
+        while (check(Token::INT) || check(Token::LONG)) {
+            p->fdlist.push_back(parseFunDec());
+        }
+    }
+
     cout << "Parser exitoso" << endl;
     return p;
 }
 
+Include* Parser::parseInclude() {
+    Include* inc;
+    match(Token::INCLUDE);
+    match(Token::LT);
+    match(Token::ID);
+    string h = previous->text;
+    match(Token::GT);
+    inc = new Include(h);
+    return inc;
+}
+
 VarDec* Parser::parseVarDec(){
     VarDec* vd = new VarDec();
-    match(Token::VAR);
-    match(Token::ID);
-    vd->type = previous->text;
+    if(match(Token::INT) || match(Token::LONG)) {
+        vd->type = previous->text;
+    }
     match(Token::ID);
     vd->vars.push_back(previous->text);
-    while(match(Token::COMA)) {
+    while(match(Token::COMMA)) {
         match(Token::ID);
         vd->vars.push_back(previous->text);
     }
     return vd;
 }
 
-FunDec *Parser::parseFunDec() {
-    FunDec* fd = new FunDec();
-    match(Token::FUN);
-    match(Token::ID);
-    fd->tipo = previous->text;
-    match(Token::ID);
-    fd->nombre = previous->text;
-    match(Token::LPAREN);
-    if(check(Token::ID)) {
-        while(match(Token::ID)) {
-            fd->Ptipos.push_back(previous->text);
-            match(Token::ID);
-            fd->Pnombres.push_back(previous->text);
-            match(Token::COMA);
-        }
+InstanceDec* Parser::paserInstanceDec() {
+    InstanceDec* id = new InstanceDec();
+    if (match(Token::INT) || match(Token::LONG)) {
+        id->type = previous->text;
     }
-    match(Token::RPAREN);
-    fd->cuerpo = parseBody();
-    match(Token::ENDFUN);
-    return fd;
+    match(Token::ID);
+    id->vars.push_back(previous->text);
+    match(Token::ASSIGN);
+    id->values.push_back(parseCE());
+    while (match(Token::COMMA)) {
+        match(Token::ID);
+        id->vars.push_back(previous->text);
+        match(Token::ASSIGN);
+        id->values.push_back(parseCE());
+    }
+    return id;
 }
 
-
-
-Body* Parser::parseBody(){
-    Body* b = new Body();
-    if(check(Token::VAR)) {
-        b->declarations.push_back(parseVarDec());
-        while(match(Token::SEMICOL)) {
-            if(check(Token::VAR)) {
-                b->declarations.push_back(parseVarDec());
+FunDec* Parser::parseFunDec() {
+    FunDec* fd = new FunDec();
+    if (match(Token::INT) || match(Token::LONG)) {
+        fd->Type = previous->text;
+    }
+    match(Token::ID);
+    fd->id = previous->text;
+    match(Token::LPAREN);
+    if(check(Token::INT) || check(Token::LONG)) {
+        while(true) {
+            string ptipos;
+            if (match(Token::INT) || match(Token::LONG)) {
+                ptipos = previous->text;
+            }
+            match(Token::ID);
+            string pnombres = previous->text;
+            ParamDec* pd = new ParamDec(ptipos, pnombres);
+            fd->params.push_back(pd);
+            if (!match(Token::COMMA)) {
+                break;
             }
         }
     }
-    b->StmList.push_back(parseStm());
-    while(match(Token::SEMICOL)) {
-        b->StmList.push_back(parseStm());
+    match(Token::RPAREN);
+    fd->body = parseBody();
+    return fd;
+}
+
+Body* Parser::parseBody() {
+    Body* b = new Body();
+    match(Token::LBRACE);
+    while (check(Token::INT) || check(Token::LONG)) {
+        b->declarations.push_back(parseVarDec());
+        match(Token::SEMICOL);
     }
+    while (check(Token::INT) || check(Token::LONG)) {
+        b->intances.push_back(paserInstanceDec());
+        match(Token::SEMICOL);
+    }
+    while (!check(Token::RBRACE)) {
+        b->stmList.push_back(parseStm());
+        match(Token::SEMICOL);
+    }
+    match(Token::RBRACE);
     return b;
 }
 
@@ -136,55 +193,68 @@ Stm* Parser::parseStm() {
     string variable;
     Body* tb = nullptr;
     Body* fb = nullptr;
-    if(match(Token::ID)){
+    if (match(Token::ID)) {
         variable = previous->text;
         match(Token::ASSIGN);
         e = parseCE();
-        return new AssignStm(variable,e);
+        return new AssignStm(variable, e);
     }
-    else if(match(Token::PRINT)){
+    else if (match(Token::PRINTF)) {
         match(Token::LPAREN);
-        e = parseCE();
+        match(Token::FORMAT);
+        string fmt = previous->text;
+        list<Exp*> args;
+        if (!check(Token::RPAREN)) {
+            args.push_back(parseCE());
+            while (match(Token::COMMA)) {
+                // Si inmediatamente después de la coma viene ')' => coma final
+                if (check(Token::RPAREN)) {
+                    throw runtime_error("Error sintáctico: coma final en printf");
+                }
+                args.push_back(parseCE());
+            }
+        }
         match(Token::RPAREN);
-        return new PrintStm(e);
+        return new PrintfStm(fmt, args);
     }
-    else if(match(Token::RETURN)) {
-        ReturnStm* r  = new ReturnStm();
-        match(Token::LPAREN);
-        r->e = parseCE();
-        match(Token::RPAREN);
+    else if (match(Token::RETURN)) {
+        ReturnStm* r = new ReturnStm();
+        if (!check(Token::SEMICOL)) {
+            r->e = parseCE();
+        }
         return r;
     }
-else if (match(Token::IF)) {
+    else if (match(Token::IF)) {
+        match(Token::LPAREN);
         e = parseCE();
-        if (!match(Token::THEN)) {
-            cout << "Error: se esperaba 'then' después de la expresión." << endl;
-            exit(1);
-        }
+        match(Token::RPAREN);
         tb = parseBody();
         if (match(Token::ELSE)) {
             fb = parseBody();
         }
-        if (!match(Token::ENDIF)) {
-            cout << "Error: se esperaba 'endif' al final de la declaración de if." << endl;
-            exit(1);
-        }
         a = new IfStm(e, tb, fb);
     }
     else if (match(Token::WHILE)) {
+        match(Token::LPAREN);
         e = parseCE();
-        if (!match(Token::DO)) {
-            cout << "Error: se esperaba 'do' después de la expresión." << endl;
-            exit(1);
-        }
+        match(Token::RPAREN);
         tb = parseBody();
-        if (!match(Token::ENDWHILE)) {
-            cout << "Error: se esperaba 'endwhile' al final de la declaración." << endl;
-            exit(1);
-        }
         a = new WhileStm(e, tb);
     }
-    else{
+    else if (match(Token::FOR)) {
+        match(Token::LPAREN);
+        InstanceDec* init = paserInstanceDec();
+        match(Token::SEMICOL);
+        Exp* condition = parseCE();
+        match(Token::SEMICOL);
+        match(Token::ID);
+        string inc = previous->text;
+        match(Token::INC);
+        match(Token::RPAREN);
+        Body* body = parseBody();
+        a = new ForStm(init, condition, inc, body);
+    }
+    else {
         throw runtime_error("Error sintáctico");
     }
     return a;
@@ -192,14 +262,35 @@ else if (match(Token::IF)) {
 
 Exp* Parser::parseCE() {
     Exp* l = parseBE();
-    if (match(Token::LE)) {
-        BinaryOp op = LE_OP;
+    if (match(Token::LE) || match(Token::LT) || match(Token::GE) || match(Token::GT) || match(Token::EQ) || match(Token::NE)) {
+        BinaryOp op;
+        switch (previous->type) {
+            case Token::LE:
+                op = LE_OP;
+                break;
+            case Token::LT:
+                op = LT_OP;
+                break;
+            case Token::GE:
+                op = GE_OP;
+                break;
+            case Token::GT:
+                op = GT_OP;
+                break;
+            case Token::EQ:
+                op = EQ_OP;
+                break;
+            case Token::NE:
+                op = NE_OP;
+                break;
+            default:
+                throw runtime_error("Error sintáctico");
+        }
         Exp* r = parseBE();
         l = new BinaryExp(l, r, op);
     }
     return l;
 }
-
 
 Exp* Parser::parseBE() {
     Exp* l = parseE();
@@ -219,7 +310,7 @@ Exp* Parser::parseBE() {
 
 
 Exp* Parser::parseE() {
-    Exp* l = parseT();
+    Exp* l = parseF();
     while (match(Token::MUL) || match(Token::DIV)) {
         BinaryOp op;
         if (previous->type == Token::MUL){
@@ -228,13 +319,14 @@ Exp* Parser::parseE() {
         else{
             op = DIV_OP;
         }
-        Exp* r = parseT();
+        Exp* r = parseF();
         l = new BinaryExp(l, r, op);
     }
     return l;
 }
 
-
+/*
+// NO SE USA ESTA FUNCIÓN
 Exp* Parser::parseT() {
     Exp* l = parseF();
     if (match(Token::POW)) {
@@ -244,10 +336,11 @@ Exp* Parser::parseT() {
     }
     return l;
 }
+*/
 
 Exp* Parser::parseF() {
     Exp* e;
-    string nom;
+    string nombre;
     if (match(Token::NUM)) {
         return new NumberExp(stoi(previous->text));
     }
@@ -264,20 +357,25 @@ Exp* Parser::parseF() {
         return e;
     }
     else if (match(Token::ID)) {
-        nom = previous->text;
+        nombre = previous->text;
         if(check(Token::LPAREN)) {
             match(Token::LPAREN);
             FcallExp* fcall = new FcallExp();
-            fcall->nombre = nom;
-            fcall->argumentos.push_back(parseCE());
-            while(match(Token::COMA)) {
-                fcall->argumentos.push_back(parseCE());
+            fcall->name = nombre;
+            if (!check(Token::RPAREN)) {
+                fcall->arguments.push_back(parseCE());
+                while (match(Token::COMMA)) {
+                    if (check(Token::RPAREN)) {
+                        throw runtime_error("Error sintáctico: coma final en llamada a función");
+                    }
+                    fcall->arguments.push_back(parseCE());
+                }
             }
             match(Token::RPAREN);
             return fcall;
         }
         else {
-            return new IdExp(nom);
+            return new IdExp(nombre);
             }
     }
     else {
