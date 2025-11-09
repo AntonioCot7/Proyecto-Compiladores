@@ -49,44 +49,27 @@ Token* Scanner::nextToken() {
 
     // Cadenas y formatos
     else if (c == '"') {
-        cout << "DEBUG: Iniciando procesamiento de cadena" << endl;
         int string_start = first;  // Guardamos el inicio de la cadena
         current++;  // Saltamos la comilla inicial
-        bool tieneFormato = false;
-        int format_start = -1;
-        int format_length = 0;
 
         while (current < input.length()) {
-            cout << "DEBUG: Caracter actual: '" << input[current] << "'" << endl;
-            
-            // Procesar especificaciones de formato
+            // Procesar especificaciones de formato (solo avanzamos, no las separamos)
             if (input[current] == '%') {
-                cout << "DEBUG: Encontrando posible formato de posición" << current << endl;
                 if (current + 1 < input.length()) {
                     if (input[current + 1] == 'd') {
-                        format_start = current;
-                        format_length = 2;
                         current += 2;
-                        tieneFormato = true;
-                        cout << "DEBUG: Formato %d entrado" << endl;
                         continue;
                     }
                     else if (current + 2 < input.length() && input[current + 1] == 'l' && input[current +2] == 'd') {
-                        format_start = current;
-                        format_length = 3;
                         current += 3;
-                        tieneFormato = true;
-                        cout << "DEBUG: Formato %ld entrado" << endl;
                         continue;
                     }
                 }
             }
 
-            // Procesar escape sequences
+            // Procesar escape sequences (como \n, \t, etc.)
             if (input[current] == '\\') {
-                cout << "DEBUG: Encontrado backslash en posición" << current << endl;
                 if (current + 1 < input.length()) {
-                    cout << "DEBUG: Siguiente caracter: " << input[current + 1] << endl;
                     if (input[current + 1] == 'n' || input[current + 1] == 't' || input[current + 1] == '"' || input[current + 1] == '\\') {
                         current += 2;
                         continue;
@@ -97,20 +80,13 @@ Token* Scanner::nextToken() {
             // Buscar fin de cadena
             if (input[current] == '"') {
                 current++; // Incluir la comilla final
-                cout << "DEBUG: Cadena completa encontrada" << endl;
 
-                // Si encontramos un formato, retornamos el token de formato primero
-                if (tieneFormato) {
-                    cout << "DEBUG: Retornando token de formato" << endl;
-                    return new Token(Token::FORMAT, input, format_start, format_length);
-                }
-
-                // Si no hay formato, retornamos la cadena completa
+                // SIEMPRE retornamos el string completo (con o sin formato)
+                // Esto preserva espacios, \n y otros caracteres antes/después del formato
                 return new Token(Token::STRING, input, string_start, current - string_start);
             }
             current++;
         }
-        cout << "DEBUG: ERROR - cadena no cerrada" << endl;
         return new Token(Token::ERR, input[string_start]);
     }
 
@@ -139,9 +115,33 @@ Token* Scanner::nextToken() {
     }
     // Operadores
     else if (strchr("+/-*(){};,=<>!#", c)) {
-        if (c == '+' && current + 1 < input.length() && input[current + 1] == '+') {
-            current += 2;
-            return new Token(Token::INC, input, first, 2);
+        if (c == '+') {
+            if (current + 1 < input.length()) {
+                if (input[current + 1] == '+') {
+                    current += 2;
+                    return new Token(Token::INC, input, first, 2);
+                }
+                else if (input[current + 1] == '=') {
+                    current += 2;
+                    return new Token(Token::PLUS_ASSIGN, input, first, 2);
+                }
+            }
+            current++;
+            return new Token(Token::PLUS, c);
+        }
+        else if (c == '-') {
+            if (current + 1 < input.length()) {
+                if (input[current + 1] == '-') {
+                    current += 2;
+                    return new Token(Token::DEC, input, first, 2);
+                }
+                else if (input[current + 1] == '=') {
+                    current += 2;
+                    return new Token(Token::MINUS_ASSIGN, input, first, 2);
+                }
+            }
+            current++;
+            return new Token(Token::MINUS, c);
         }
         else if (c == '=' && current + 1 < input.length() && input[current + 1] == '=') {
             current += 2;

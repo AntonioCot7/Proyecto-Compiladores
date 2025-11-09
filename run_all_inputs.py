@@ -19,27 +19,43 @@ print("Compilación exitosa")
 # Ejecutar
 input_dir = "inputs"
 output_dir = "outputs"
-os.makedirs(output_dir, exist_ok=True)
+interprete_dir = "outputs_interprete"
 
-for i in range(1, 15):
+# Crear directorios de salida
+os.makedirs(output_dir, exist_ok=True)
+os.makedirs(interprete_dir, exist_ok=True)
+
+for i in range(1, 5):  # Solo procesar hasta input4
     filename = f"input{i}.txt"
     filepath = os.path.join(input_dir, filename)
 
     if os.path.isfile(filepath):
-        print(f"Ejecutando {filename}")
+        print(f"\nProcesando {filename}")
         run_cmd = ["./a.out", filepath]
         result = subprocess.run(run_cmd, capture_output=True, text=True)
 
-        
-        # Archivos generados
-        tokens_file = os.path.join(input_dir, f"input{i}.s")  # se crea en inputs/
-      
+        if result.returncode != 0:
+            print(f"Error al procesar {filename}:")
+            print(result.stderr)
+            continue
 
-        # Mover archivo de tokens si existe
-        if os.path.isfile(tokens_file):
-            dest_tokens = os.path.join(output_dir, f"input_{i}.s")
-            shutil.move(tokens_file, dest_tokens)
+        base_name = f"input_{i}"
 
+        # Verificar y mover archivos generados
+        # 1. Código ensamblador - buscamos en el directorio actual
+        asm_file = f"{base_name}.s"
+        if os.path.isfile(asm_file):
+            dest_asm = os.path.join(output_dir, asm_file)
+            # Si el archivo ya existe en el destino, lo sobrescribimos
+            if os.path.exists(dest_asm):
+                os.remove(dest_asm)
+            shutil.move(asm_file, dest_asm)
+            print(f"- Código ensamblador generado en: {dest_asm}")
 
+        # 2. Salida del intérprete
+        interprete_file = os.path.join(interprete_dir, f"input{i}_output.txt")
+        if os.path.isfile(interprete_file):
+            print(f"- Salida del intérprete generada en: {interprete_file}")
     else:
-        print(filename, "no encontrado en", input_dir)
+        print(f"Error: {filename} no encontrado en {input_dir}")
+        exit(1)  # Terminar si falta algún archivo de entrada requerido

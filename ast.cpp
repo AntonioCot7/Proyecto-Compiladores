@@ -3,24 +3,46 @@
 
 using namespace std;
 
+// ------------------ Program ------------------
+Program::Program() {}
+
+// ------------------ VarDec ------------------
+VarDec::VarDec() {}
+
+// ------------------ InstanceDec ------------------
+InstanceDec::InstanceDec() {}
+
+// ------------------ Body ------------------
+Body::Body() {}
+
+// ------------------ ParamDec ------------------
+ParamDec::~ParamDec() {}
+
+// ------------------ FunDec ------------------
+FunDec::FunDec() {}
+
+// ------------------ FcallExp ------------------
+FcallExp::FcallExp() {}
+
 // ------------------ Exp ------------------
 Exp::~Exp() {}
 
 string Exp::binopToChar(BinaryOp op) {
     switch (op) {
-        case PLUS_OP:   return "+";
-        case MINUS_OP:  return "-";
-        case MUL_OP:    return "*";
-        case DIV_OP:    return "/";
-        case INC_OP:    return "++";
-        case GT_OP:     return ">";
-        case LT_OP:     return "<";
-        case GE_OP:     return ">=";
-        case LE_OP:     return "<=";
-        case EQ_OP:     return "==";
-        case NE_OP:     return "!=";
-        case ASSIGN_OP: return "=";
-        default:        return "?";
+        case PLUS_OP:         return "+";
+        case MINUS_OP:        return "-";
+        case MUL_OP:          return "*";
+        case DIV_OP:          return "/";
+        case PLUS_ASSIGN_OP:  return "+=";
+        case MINUS_ASSIGN_OP: return "-=";
+        case GT_OP:           return ">";
+        case LT_OP:           return "<";
+        case GE_OP:           return ">=";
+        case LE_OP:           return "<=";
+        case EQ_OP:           return "==";
+        case NE_OP:           return "!=";
+        case ASSIGN_OP:       return "=";
+        default:              return "?";
     }
 }
 
@@ -101,13 +123,24 @@ WhileStm::~WhileStm() {
     delete body;
 }
 
+// ------------------ StepExp ------------------
+StepExp::StepExp(Exp* var, StepType t, Exp* amt) 
+    : variable(var), type(t), amount(amt) {}
+
+StepExp::~StepExp() {
+    delete variable;
+    if (amount) delete amount;
+}
+
 // ------------------ ForStm ------------------
-ForStm::ForStm(InstanceDec* i, Exp* c, string inc, Body* body)
-    : init(i), condition(c), increment(inc), b(body) {}
+ForStm::ForStm(InstanceDec* i, Exp* c, StepExp* s, Body* b)
+    : init(i), condition(c), step(s), body(b) {}
+
 ForStm::~ForStm() {
     delete init;
     delete condition;
-    delete b;
+    delete step;
+    delete body;
 }
 
 // ------------------ PrintfStm ------------------

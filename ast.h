@@ -10,29 +10,42 @@ using namespace std;
 // Forward declarations
 class Visitor;
 class VarDec;
+class FunDec;
+class ParamDec;
+class Body;
+class Include;
+class InstanceDec;
+class Stm;
+class Exp;
+class FunDec;
+class ParamDec;
+class Body;
+class Include;
+class InstanceDec;
+class Stm;
+class Exp;
 
-/**
- * @brief Operadores binarios soportados en el lenguaje
- * Incluye operadores aritméticos, relacionales y de asignación
- */
+// Operadores binarios soportados en el lenguaje
+// Incluye operadores aritméticos, relacionales y de asignación
 enum BinaryOp { 
     // Operadores aritméticos
-    PLUS_OP,    // +
-    MINUS_OP,   // -
-    MUL_OP,     // *
-    DIV_OP,     // /
-    INC_OP,     // ++
+    PLUS_OP,          // +
+    MINUS_OP,         // -
+    MUL_OP,          // *
+    DIV_OP,          // /
+    PLUS_ASSIGN_OP,  // +=
+    MINUS_ASSIGN_OP, // -=
     
     // Operadores relacionales
-    GT_OP,      // >
-    LT_OP,      // <
-    GE_OP,      // >=
-    LE_OP,      // <=
-    EQ_OP,      // ==
-    NE_OP,      // !=
+    GT_OP,           // >
+    LT_OP,           // <
+    GE_OP,           // >=
+    LE_OP,           // <=
+    EQ_OP,           // ==
+    NE_OP,           // !=
     
     // Operador de asignación
-    ASSIGN_OP   // =
+    ASSIGN_OP        // =
 };
 
 
@@ -66,7 +79,6 @@ public:
 };
 
 // Representa un identificador (variable)
-
 class IdExp : public Exp {
 public:
     string value;
@@ -198,7 +210,7 @@ public:
     ~IfStm();
 };
 
-// @brief Representa un bucle while
+// Representa un bucle while
 // Ejemplo: while (x > 0) { ... }
 class WhileStm : public Stm {
 public:
@@ -209,20 +221,39 @@ public:
     ~WhileStm();
 };
 
-// @brief Representa un bucle for
+// Representa una expresión de incremento/paso
+// Ejemplos: i++, i += n, i -= n
+class StepExp : public Exp {
+public:
+    enum StepType {
+        INCREMENT,    // i++
+        DECREMENT,    // i--
+        COMPOUND      // i += n, i -= n
+    };
+    
+    Exp* variable;     // Variable a modificar (IdExp*)
+    StepType type;     // Tipo de paso
+    Exp* amount;       // Para COMPOUND: cantidad a incrementar/decrementar
+    
+    int accept(Visitor* visitor) override;
+    StepExp(Exp* var, StepType t, Exp* amt = nullptr);
+    ~StepExp();
+};
+
+// Representa un bucle for
 // Ejemplo: for (int i = 0; i < 10; i++) { ... }
 class ForStm: public Stm {
 public:
     InstanceDec* init;    // Inicialización
     Exp* condition;       // Condición
-    string increment;     // Incremento
-    Body* b;             // Cuerpo del bucle
+    StepExp* step;        // Expresión de incremento
+    Body* body;           // Cuerpo del bucle
     int accept(Visitor* visitor);
-    ForStm(InstanceDec* init, Exp* condition, string increment, Body* b);
+    ForStm(InstanceDec* init, Exp* condition, StepExp* step, Body* body);
     ~ForStm();
 };
 
-// @brief Representa una llamada a printf
+// Representa una llamada a printf
 // Ejemplo: printf("Value: %d", x);
 class PrintfStm: public Stm {
 public:

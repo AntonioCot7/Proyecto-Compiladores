@@ -20,6 +20,7 @@ public:
         MUL,     // *
         DIV,     // /
         INC,     // ++
+        DEC,     // --
         GT,      // >
         LT,      // <
         GE,      // >=
@@ -27,6 +28,8 @@ public:
         EQ,      // ==
         NE,      // !=
         ASSIGN,  // =
+        PLUS_ASSIGN,  // +=
+        MINUS_ASSIGN, // -=
         
         // Símbolos
         LPAREN,  // (

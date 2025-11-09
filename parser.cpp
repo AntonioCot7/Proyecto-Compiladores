@@ -58,6 +58,7 @@ bool Parser::isAtEnd() {
 Program* Parser::parseProgram() {
     Program* p = new Program();
 
+    // Parsear includes
     if (match(Token::HASH)) {
         p->includes.push_back(parseInclude());
         while(match(Token::SEMICOL)) {
@@ -68,28 +69,101 @@ Program* Parser::parseProgram() {
         }
     }
 
-    if (check(Token::INT) || check(Token::LONG)) {
-        p->vdlist.push_back(parseVarDec());
-        while(match(Token::SEMICOL)) {
-            if(check(Token::INT) || check(Token::LONG)) {
-                p->vdlist.push_back(parseVarDec());
-            }
+    // Parsear declaraciones globales (variables, inicializaciones y funciones)
+    while (check(Token::INT) || check(Token::LONG)) {
+        // Hacer lookahead: consumir tipo e ID para ver qué sigue
+        string tipo;
+        if (match(Token::INT)) {
+            tipo = previous->text;
+        } else if (match(Token::LONG)) {
+            tipo = previous->text;
         }
+        // Verificar que después del tipo viene un ID
+        if (!check(Token::ID)) {
+            throw runtime_error("Error sintáctico: se esperaba un identificador después del tipo");
+        }
+        match(Token::ID);  // Consumir ID
+        string id = previous->text;
         
-    }
-
-    if (check(Token::INT) || check(Token::LONG)) {
-        p->intdlist.push_back(paserInstanceDec());
-        while(match(Token::SEMICOL)) {
-            if(check(Token::INT) || check(Token::LONG)) {
-                p->intdlist.push_back(paserInstanceDec());
+        // Determinar qué tipo de declaración es según el siguiente token
+        if (check(Token::LPAREN)) {
+            // Es una función: int id ( ... )
+            // Los métodos de parsing esperan que el tipo ya esté consumido,
+            // pero nosotros ya lo consumimos. Necesitamos parsear manualmente
+            // o modificar el enfoque.
+            // Solución: crear la función manualmente desde aquí
+            FunDec* fd = new FunDec();
+            fd->Type = tipo;
+            fd->id = id;
+            if (!match(Token::LPAREN)) {
+                throw runtime_error("Error sintáctico: se esperaba '(' después del nombre de la función");
             }
-        }
-    }
-
-    if (check(Token::INT) || check(Token::LONG)) {
-        while (check(Token::INT) || check(Token::LONG)) {
-            p->fdlist.push_back(parseFunDec());
+            if(check(Token::INT) || check(Token::LONG)) {
+                while(true) {
+                    string ptipos;
+                    if (match(Token::INT)) {
+                        ptipos = previous->text;
+                    } else if (match(Token::LONG)) {
+                        ptipos = previous->text;
+                    }
+                    if (!match(Token::ID)) {
+                        throw runtime_error("Error sintáctico: se esperaba un identificador en los parámetros");
+                    }
+                    string pnombres = previous->text;
+                    ParamDec* pd = new ParamDec(ptipos, pnombres);
+                    fd->params.push_back(pd);
+                    if (!match(Token::COMMA)) {
+                        break;
+                    }
+                }
+            }
+            if (!match(Token::RPAREN)) {
+                throw runtime_error("Error sintáctico: se esperaba ')' después de los parámetros");
+            }
+            fd->body = parseBody();
+            p->fdlist.push_back(fd);
+        } else if (check(Token::ASSIGN)) {
+            // Es una inicialización: int id = ...
+            // Parsear como InstanceDec manualmente
+            InstanceDec* id_dec = new InstanceDec();
+            id_dec->type = tipo;
+            id_dec->vars.push_back(id);
+            if (!match(Token::ASSIGN)) {
+                throw runtime_error("Error sintáctico: se esperaba '=' en la inicialización");
+            }
+            id_dec->values.push_back(parseCE());
+            while (match(Token::COMMA)) {
+                if (!match(Token::ID)) {
+                    throw runtime_error("Error sintáctico: se esperaba un identificador después de la coma en la inicialización");
+                }
+                id_dec->vars.push_back(previous->text);
+                if (!match(Token::ASSIGN)) {
+                    throw runtime_error("Error sintáctico: se esperaba '=' después del identificador en la inicialización");
+                }
+                id_dec->values.push_back(parseCE());
+            }
+            p->intdlist.push_back(id_dec);
+            if (!match(Token::SEMICOL)) {
+                throw runtime_error("Error sintáctico: se esperaba ';' después de la inicialización");
+            }
+        } else if (check(Token::SEMICOL) || check(Token::COMMA)) {
+            // Es una declaración de variable: int id ; o int id , ...
+            VarDec* vd = new VarDec();
+            vd->type = tipo;
+            vd->vars.push_back(id);
+            while (match(Token::COMMA)) {
+                if (!match(Token::ID)) {
+                    throw runtime_error("Error sintáctico: se esperaba un identificador después de la coma");
+                }
+                vd->vars.push_back(previous->text);
+            }
+            p->vdlist.push_back(vd);
+            if (!match(Token::SEMICOL)) {
+                throw runtime_error("Error sintáctico: se esperaba ';' después de la declaración de variable");
+            }
+        } else {
+            string tokenInfo = isAtEnd() ? "fin de archivo" : ("token '" + (current ? current->text : "desconocido") + "'");
+            throw runtime_error("Error sintáctico: después de '" + tipo + " " + id + "' se encontró " + tokenInfo + ", se esperaba '(', '=' o ';'");
         }
     }
 
@@ -113,10 +187,14 @@ VarDec* Parser::parseVarDec(){
     if(match(Token::INT) || match(Token::LONG)) {
         vd->type = previous->text;
     }
-    match(Token::ID);
+    if (!match(Token::ID)) {
+        throw runtime_error("Error sintáctico: se esperaba un identificador en la declaración de variable");
+    }
     vd->vars.push_back(previous->text);
     while(match(Token::COMMA)) {
-        match(Token::ID);
+        if (!match(Token::ID)) {
+            throw runtime_error("Error sintáctico: se esperaba un identificador después de la coma");
+        }
         vd->vars.push_back(previous->text);
     }
     return vd;
@@ -170,20 +248,44 @@ FunDec* Parser::parseFunDec() {
 
 Body* Parser::parseBody() {
     Body* b = new Body();
-    match(Token::LBRACE);
+    if (!match(Token::LBRACE)) {
+        throw runtime_error("Error sintáctico: se esperaba '{'");
+    }
     while (check(Token::INT) || check(Token::LONG)) {
         b->declarations.push_back(parseVarDec());
-        match(Token::SEMICOL);
+        if (!match(Token::SEMICOL)) {
+            throw runtime_error("Error sintáctico: se esperaba ';' después de la declaración de variable");
+        }
     }
     while (check(Token::INT) || check(Token::LONG)) {
         b->intances.push_back(paserInstanceDec());
-        match(Token::SEMICOL);
+        if (!match(Token::SEMICOL)) {
+            throw runtime_error("Error sintáctico: se esperaba ';' después de la inicialización");
+        }
     }
     while (!check(Token::RBRACE)) {
+        if (isAtEnd()) {
+            throw runtime_error("Error sintáctico: se esperaba '}' pero se llegó al final del archivo");
+        }
         b->stmList.push_back(parseStm());
-        match(Token::SEMICOL);
+        // Los statements de bloque (if, while, for) no terminan con SEMICOL
+        // Solo los statements simples (asignación, printf, return) terminan con SEMICOL
+        // Si el siguiente token es RBRACE, no consumir SEMICOL (es el final del bloque)
+        // Si el siguiente token no es RBRACE ni SEMICOL, el statement parseado debe ser un bloque
+        // Si el siguiente token es SEMICOL, consumirlo (es un statement simple)
+        if (check(Token::RBRACE)) {
+            // Final del bloque, no consumir SEMICOL
+            break;
+        } else if (check(Token::SEMICOL)) {
+            // Statement simple, consumir SEMICOL
+            match(Token::SEMICOL);
+        }
+        // Si no es RBRACE ni SEMICOL, es un bloque (if/while/for) que ya fue parseado completamente
+        // Continuar con el siguiente statement
     }
-    match(Token::RBRACE);
+    if (!match(Token::RBRACE)) {
+        throw runtime_error("Error sintáctico: se esperaba '}'");
+    }
     return b;
 }
 
@@ -195,16 +297,27 @@ Stm* Parser::parseStm() {
     Body* fb = nullptr;
     if (match(Token::ID)) {
         variable = previous->text;
-        match(Token::ASSIGN);
+        if (!match(Token::ASSIGN)) {
+            throw runtime_error("Error sintáctico: se esperaba '=' después del identificador '" + variable + "'");
+        }
         e = parseCE();
         return new AssignStm(variable, e);
     }
     else if (match(Token::PRINTF)) {
-        match(Token::LPAREN);
-        match(Token::FORMAT);
+        if (!match(Token::LPAREN)) {
+            throw runtime_error("Error sintáctico: se esperaba '(' después de printf");
+        }
+        if (!match(Token::STRING)) {
+            throw runtime_error("Error sintáctico: se esperaba una cadena después de '(' en printf");
+        }
         string fmt = previous->text;
+        // Quitar las comillas exteriores del string
+        if (fmt.length() >= 2 && fmt[0] == '"' && fmt[fmt.length()-1] == '"') {
+            fmt = fmt.substr(1, fmt.length() - 2);
+        }
         list<Exp*> args;
-        if (!check(Token::RPAREN)) {
+        // Si hay una coma después del string, hay argumentos
+        if (match(Token::COMMA)) {
             args.push_back(parseCE());
             while (match(Token::COMMA)) {
                 // Si inmediatamente después de la coma viene ')' => coma final
@@ -214,7 +327,9 @@ Stm* Parser::parseStm() {
                 args.push_back(parseCE());
             }
         }
-        match(Token::RPAREN);
+        if (!match(Token::RPAREN)) {
+            throw runtime_error("Error sintáctico: se esperaba ')' en printf");
+        }
         return new PrintfStm(fmt, args);
     }
     else if (match(Token::RETURN)) {
@@ -247,15 +362,34 @@ Stm* Parser::parseStm() {
         match(Token::SEMICOL);
         Exp* condition = parseCE();
         match(Token::SEMICOL);
+        
+        // Parsear el paso (step)
         match(Token::ID);
-        string inc = previous->text;
-        match(Token::INC);
+        IdExp* var = new IdExp(previous->text);
+        StepExp* step = nullptr;
+        
+        if (match(Token::INC)) {
+            step = new StepExp(var, StepExp::INCREMENT);
+        }
+        else if (match(Token::PLUS_ASSIGN)) {
+            Exp* amount = parseCE();
+            step = new StepExp(var, StepExp::COMPOUND, amount);
+        }
+        else if (match(Token::MINUS_ASSIGN)) {
+            Exp* amount = parseCE();
+            step = new StepExp(var, StepExp::COMPOUND, amount);
+        }
+        else {
+            throw runtime_error("Error sintáctico: expresión de incremento inválida");
+        }
+        
         match(Token::RPAREN);
         Body* body = parseBody();
-        a = new ForStm(init, condition, inc, body);
+        a = new ForStm(init, condition, step, body);
     }
     else {
-        throw runtime_error("Error sintáctico");
+        string tokenInfo = isAtEnd() ? "fin de archivo" : ("token '" + (current ? current->text : "desconocido") + "'");
+        throw runtime_error("Error sintáctico: se esperaba un statement pero se encontró " + tokenInfo);
     }
     return a;
 }
@@ -284,7 +418,7 @@ Exp* Parser::parseCE() {
                 op = NE_OP;
                 break;
             default:
-                throw runtime_error("Error sintáctico");
+                throw runtime_error("Error sintáctico: operador relacional no reconocido");
         }
         Exp* r = parseBE();
         l = new BinaryExp(l, r, op);
@@ -379,6 +513,7 @@ Exp* Parser::parseF() {
             }
     }
     else {
-        throw runtime_error("Error sintáctico");
+        string tokenInfo = isAtEnd() ? "fin de archivo" : ("token '" + (current ? current->text : "desconocido") + "'");
+        throw runtime_error("Error sintáctico: se esperaba un factor (número, identificador, paréntesis o llamada a función) pero se encontró " + tokenInfo);
     }
 }
