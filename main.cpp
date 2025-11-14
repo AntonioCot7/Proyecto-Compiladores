@@ -97,11 +97,13 @@ int main(int argc, const char* argv[]) {
     }
 
     // Ejecutar y guardar la salida del PrintVisitor
-    cout << "\n=== Iniciando interpretación del programa ===\n";
     PrintVisitor impresion;
-    // Redirigir la salida al archivo
+    EvalVisitor evaluador;
+    // Redirigir la salida al archivo y ejecutar ambos visitantes: primero Print, luego Eval
     streambuf* oldCout = cout.rdbuf(outfileInterprete.rdbuf());
     impresion.imprimir(ast);
+    // Ejecutar el evaluador para volcar los resultados del intérprete bajo la impresión
+    evaluador.evaluar(ast);
     // Restaurar la salida estándar
     cout.rdbuf(oldCout);
     outfileInterprete.close();

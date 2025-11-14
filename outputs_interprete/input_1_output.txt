@@ -14,3 +14,7 @@ printf(" %ld\n", z);
 return 0;
 }
 
+Interprete:
+ 20
+ 10
+ 1000000

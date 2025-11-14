@@ -1,6 +1,7 @@
 #ifndef VISITOR_H
 #define VISITOR_H
 #include "ast.h"
+#include "environment.h"
 #include <list>
 #include <vector>
 #include <unordered_map>
@@ -75,6 +76,39 @@ public:
     int visit(FcallExp* fcall) override;
     int visit(StepExp* step) override;
     void imprimir(Program* program);
+};
+
+class EvalVisitor : public Visitor {
+private:
+
+    // El ambiente para almacenar variables y manejar el scope
+    Environment* env;
+    unordered_map<string, FunDec*> envfun;
+    int return_value; // Para manejar el valor de retorno de las funciones
+    bool returning;   // Bandera para saber si se ha ejecutado un return
+public:
+    //EvalVisitor(Environment* environment) : env(environment), return_value(0), returning(false) {}
+    //virtual ~EvalVisitor() {}
+    void evaluar(Program* program);
+    int visit(BinaryExp* exp) override;
+    int visit(NumberExp* exp) override;
+    int visit(IdExp* exp) override;
+    int visit(BoolExp* exp) override;
+    int visit(FcallExp* fcall) override;
+    int visit(Include* inc) override;
+    int visit(VarDec* vd) override;
+    int visit(InstanceDec* ind) override;
+    int visit(ParamDec* pd) override;
+    int visit(FunDec* fd) override;
+    int visit(Body* body) override;
+    int visit(AssignStm* stm) override;
+    int visit(IfStm* stm) override;
+    int visit(WhileStm* stm) override;
+    int visit(ForStm* stm) override;
+    int visit(PrintfStm* stm) override;
+    int visit(ReturnStm* r) override;
+    int visit(Program* p) override;
+    int visit(StepExp* step) override; 
 };
 
 class GenCodeVisitor : public Visitor {

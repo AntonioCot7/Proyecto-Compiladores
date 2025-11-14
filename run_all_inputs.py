@@ -52,8 +52,8 @@ for i in range(1, 5):  # Solo procesar hasta input4
             shutil.move(asm_file, dest_asm)
             print(f"- Código ensamblador generado en: {dest_asm}")
 
-        # 2. Salida del intérprete
-        interprete_file = os.path.join(interprete_dir, f"input{i}_output.txt")
+        # 2. Salida del intérprete (usar el mismo base_name que usamos para el .s)
+        interprete_file = os.path.join(interprete_dir, f"{base_name}_output.txt")
         if os.path.isfile(interprete_file):
             print(f"- Salida del intérprete generada en: {interprete_file}")
     else:

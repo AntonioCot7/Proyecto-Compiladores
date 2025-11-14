@@ -15,3 +15,5 @@ printf(" %d\n", y);
 return 0;
 }
 
+Interprete:
+ 10

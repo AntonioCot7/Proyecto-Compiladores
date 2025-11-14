@@ -14,6 +14,25 @@ void PrintVisitor::imprimir(Program* program) {
     }
 }
 
+void EvalVisitor::evaluar(Program* program) {
+    // Inicializar ambiente y tabla de funciones antes de evaluar
+    env = new Environment();
+    return_value = 0;
+    returning = false;
+    envfun.clear();
+    if (program) {
+        // Registrar funciones para llamadas posteriores
+        for (FunDec* fd : program->fdlist) {
+            envfun[fd->id] = fd;
+        }
+        cout << "Interprete:" << endl;
+        program->accept(this);
+    }
+    // Liberar ambiente
+    delete env;
+    env = nullptr;
+}
+
 // Por ahora solo un stub - se implementará después
 void GenCodeVisitor::generar(Program* program) {
     if (program) {
@@ -290,6 +309,272 @@ int PrintVisitor::visit(FcallExp* fcall) {
     cout << ")";
     return 0;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//                    SECCIÓN 3: IMPLEMENTACIÓN DE EvalVisitor
+///////////////////////////////////////////////////////////////////////////////////
+
+int EvalVisitor::visit(BinaryExp* exp) {
+    int leftVal = exp->left->accept(this);
+    int rightVal = exp->right->accept(this);
+    switch (exp->op) {
+        case PLUS_OP: return leftVal + rightVal;
+        case MINUS_OP: return leftVal - rightVal;
+        case MUL_OP: return leftVal * rightVal;
+        case DIV_OP: 
+            if (rightVal == 0) {
+                cerr << "Error: División por cero." << endl;
+                exit(1);
+            }
+            return leftVal / rightVal;
+        case GT_OP: return leftVal > rightVal;
+        case LT_OP: return leftVal < rightVal;
+        case GE_OP: return leftVal >= rightVal;
+        case LE_OP: return leftVal <= rightVal;
+        case EQ_OP: return leftVal == rightVal;
+        case NE_OP: return leftVal != rightVal;
+        default:
+            cerr << "Error: Operador binario desconocido." << endl;
+            exit(1);
+    }
+}
+
+int EvalVisitor::visit(NumberExp* exp) {
+    return exp->value;
+}
+
+int EvalVisitor::visit(IdExp* exp) {
+    return env->lookup(exp->value);
+}
+
+int EvalVisitor::visit(BoolExp* exp) {
+    return exp->value ? 1 : 0;
+}
+
+int EvalVisitor::visit(Include* inc) {return 0;}
+
+int EvalVisitor::visit(VarDec* vd) {
+    for (const string& var : vd->vars) {
+        env->add_var(var, vd->type);
+    }
+    return 0;
+}
+
+int EvalVisitor::visit(InstanceDec* ind) {
+    auto varIt = ind->vars.begin();
+    auto valIt = ind->values.begin();
+    
+    for (; varIt != ind->vars.end() && valIt != ind->values.end(); ++varIt, ++valIt) {
+        int value = (*valIt)->accept(this); 
+        
+        env->add_var(*varIt, value, ind->type); 
+    }
+    
+    return 0;
+}
+
+int EvalVisitor::visit(Body* body) {
+    
+    env->add_level();
+    for (VarDec* vd : body->declarations) {
+        vd->accept(this);
+        if (returning) return return_value;
+    }
+    for (InstanceDec* ind : body->intances) {
+        ind->accept(this);
+        if (returning) return return_value;
+    }
+    for (Stm* stm : body->stmList) {
+        stm->accept(this);
+        if (returning) break; // Salir si se ha ejecutado un return
+    }
+    
+    env->remove_level();
+    return 0;
+}
+
+int EvalVisitor::visit(Program* p) {
+    env->add_level();
+    /*
+    for (Include* inc : p->includes) {
+        inc->accept(this);
+    }*/
+    for (VarDec* vd : p->vdlist) {
+        vd->accept(this);
+    }
+    for (InstanceDec* ind : p->intdlist) {
+        ind->accept(this);
+    }
+    
+    for (FunDec* fd : p->fdlist) {
+        fd->accept(this);
+    }
+    if (envfun.count("main"))
+    {
+        envfun["main"]->body->accept(this);
+    }
+    else{
+        cout << "no existe main"<< endl;
+        exit(0);
+    }
+    env->remove_level();
+    return 0;
+
+}
+
+int EvalVisitor::visit(ParamDec* pd) {
+    env->add_var(pd->id, pd->type);
+    return 0; 
+}
+
+int EvalVisitor::visit(FunDec* fd) {
+    // Registrar parámetros (si es necesario) pero no ejecutar el cuerpo aquí.
+    // Añadimos y removemos nivel para mantener consistencia con otras visitas.
+    env->add_level();
+    for (ParamDec* param : fd->params) {
+        param->accept(this);
+    }
+    env->remove_level();
+    return 0;
+}
+
+int EvalVisitor::visit(AssignStm* stm) {    
+    int val = stm->e->accept(this);
+    env->update(stm->id, val);
+    return 0;
+}
+
+int EvalVisitor::visit(IfStm* stm) {
+    if (stm->condition->accept(this) != 0) {
+        
+        env->add_level();
+        stm->thenBody->accept(this);
+        env->remove_level();
+
+    } else if (stm->elseBody) {
+        
+        env->add_level();
+        stm->elseBody->accept(this);
+        env->remove_level();
+    }
+    if (returning) return return_value;
+    return 0;
+}
+
+    int EvalVisitor::visit(WhileStm* stm) {
+    while (stm->condition->accept(this) != 0) {
+            // Cuerpo del bucle
+            env->add_level();
+            stm->body->accept(this);
+            env->remove_level();
+
+            if (returning) return return_value;
+        }
+        return 0;
+}
+
+    int EvalVisitor::visit(StepExp* step) {
+    IdExp* id = dynamic_cast<IdExp*>(step->variable);
+
+    string var_name = id->value;
+    
+    int current_val = env->lookup(var_name);
+    int new_val = 0;
+
+    switch(step->type) {
+        case StepExp::INCREMENT:
+            new_val = current_val + 1;
+            break;
+        case StepExp::DECREMENT: 
+            new_val = current_val - 1;
+            break;
+        case StepExp::COMPOUND:
+            int amount_val = step->amount->accept(this); 
+            new_val = current_val + amount_val; 
+            break;
+    }
+    
+    env->update(var_name, new_val);
+    return 0;
+}
+
+    int EvalVisitor::visit(ForStm* stm) {
+    env->add_level();
+    stm->init->accept(this);
+
+    while (stm->condition->accept(this) != 0) {
+        env->add_level();
+        stm->body->accept(this);
+        env->remove_level();
+        
+        if (returning) {
+            env->remove_level(); 
+            return return_value;
+        }
+        stm->step->accept(this);
+    }
+
+    
+    env->remove_level();
+    return 0;
+}
+
+int EvalVisitor::visit(PrintfStm* stm) {
+    // Lógica simplificada de printf:
+    string format_str = stm->format;
+    vector<int> arg_values;
+    for (Exp* arg : stm->args) {
+        arg_values.push_back(arg->accept(this));
+    }
+
+    size_t arg_index = 0;
+    for (size_t i = 0; i < format_str.length(); ++i) {
+        if (format_str[i] == '%') {
+            // Manejar %d o %ld
+            if (i + 1 < format_str.length() && (format_str[i+1] == 'd' || (i + 2 < format_str.length() && format_str[i+1] == 'l' && format_str[i+2] == 'd'))) {
+                if (arg_index < arg_values.size()) {
+                    cout << arg_values[arg_index++];
+                }
+                i += (format_str[i+1] == 'l' ? 2 : 1);
+            }
+        } else if (format_str[i] == '\\' && i + 1 < format_str.length()) {
+            // Manejar secuencias de escape: \n, \t
+            if (format_str[i+1] == 'n') cout << "\n";
+            else if (format_str[i+1] == 't') cout << "\t";
+            else cout << format_str[i+1]; // Otros escapes
+            i++;
+        }
+        else {
+            cout << format_str[i];
+        }
+    }
+    
+    return 0;
+}
+
+int EvalVisitor::visit(ReturnStm* r) {
+    return_value = r->e->accept(this);
+    returning = true;
+    return 0; 
+}
+
+int EvalVisitor::visit(FcallExp* fcall) {
+    FunDec* func = envfun[fcall->name];
+    env->add_level();
+    for (size_t i = 0; i < func->params.size(); ++i) {
+
+        ParamDec* param = func->params[i];
+        int arg_value = fcall->arguments[i]->accept(this);
+        env->add_var(param->id, arg_value, param->type);
+    }
+    func->body->accept(this);
+    env->remove_level();
+    return return_value;
+}
+
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////
