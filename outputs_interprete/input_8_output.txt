@@ -1,0 +1,9 @@
+#include <stdio.h>
+int main() {
+int x;
+x = ((1 + 2) + 3);
+printf("Sum: %d\n", x);
+return 0;
+}
+Interprete:
+Sum: 6

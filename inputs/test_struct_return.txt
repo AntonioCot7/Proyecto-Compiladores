@@ -1,0 +1,20 @@
+#include <stdio.h>
+
+typedef struct {
+    int a;
+    int b;
+} Pair;
+
+Pair make_pair(int x, int y) {
+    Pair p;
+    p.a = x;
+    p.b = y;
+    return p;
+}
+
+int main() {
+    Pair p = make_pair(10, 20);
+    printf("%d\n", p.a);
+    printf("%d\n", p.b);
+    return 0;
+}

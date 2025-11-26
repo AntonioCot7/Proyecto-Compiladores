@@ -1,0 +1,43 @@
+#include <stdio.h>
+typedef struct {
+    int x;
+    int y;
+    int energy;
+} Particle;
+typedef unsigned int uint;
+int main() {
+Particle p;
+int time;
+p.x = 0;
+p.y = 0;
+p.energy = 100;
+time = 0;
+while ((p.energy > 0)) {
+if ((time > 5)) {
+p.energy = 0;
+}
+for (int i = 0;
+(i < 3); i++) {
+p.x = (p.x + 1);
+p.y = ((p.x > p.y) ? (p.y + 2) : (p.y + 1));
+if ((p.x == p.y)) {
+printf("Colision en %d,%d\n", p.x, p.y);
+p.energy = (p.energy - 20);
+}
+}
+printf("T=%d Pos(%d,%d) E=%d\n", time, p.x, p.y, p.energy);
+time = (time + 1);
+p.energy = (p.energy - 10);
+}
+printf("Simulacion terminada.\n");
+return 0;
+}
+Interprete:
+T=0 Pos(3,4) E=100
+T=1 Pos(6,7) E=90
+T=2 Pos(9,10) E=80
+T=3 Pos(12,13) E=70
+T=4 Pos(15,16) E=60
+T=5 Pos(18,19) E=50
+T=6 Pos(21,22) E=0
+Simulacion terminada.

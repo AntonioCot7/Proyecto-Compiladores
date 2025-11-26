@@ -1,0 +1,9 @@
+#include <stdio.h>
+int main() {
+typedef unsigned int uint;
+uint n = 10;
+printf(" %u\n", n);
+return 0;
+}
+Interprete:
+ 10

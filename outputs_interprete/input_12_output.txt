@@ -1,0 +1,13 @@
+#include <stdio.h>
+int main() {
+float x;
+float y;
+x = 3.14;
+y = 2.71;
+printf("Float x: %ld\n", x);
+printf("Float y: %ld\n", y);
+return 0;
+}
+Interprete:
+Float x: 3.14
+Float y: 2.71

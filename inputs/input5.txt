@@ -1,0 +1,40 @@
+#include <stdio.h>
+
+typedef struct {
+    int start;
+    int steps;
+    int max_val;
+} Collatz;
+
+Collatz analyze(int n) {
+    Collatz c;
+    c.start = n;
+    c.steps = 0;
+    c.max_val = n;
+    
+    while (n > 1) {
+        if (n > c.max_val) {
+            c.max_val = n;
+        }
+        
+        int half = n / 2;
+        int is_even = (half * 2 == n) ? 1 : 0;
+        
+        if (is_even) {
+            n = half;
+        } else {
+            n = 3 * n + 1;
+        }
+        c.steps = c.steps + 1;
+    }
+    return c;
+}
+
+int main() {
+    int i;
+    for (int i = 6; i < 9; i = i + 1) {
+        Collatz res = analyze(i);
+        printf("N=%d Pasos=%d Max=%d\n", res.start, res.steps, res.max_val);
+    }
+    return 0;
+}

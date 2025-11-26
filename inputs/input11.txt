@@ -1,0 +1,9 @@
+#include<stdio.h>
+int main() {
+    int x = (5 < 10) ? 1 : 0;
+    int y;
+    y = (5 > 10) ? 1 : 0;
+    printf(" %d\n", x);
+    printf(" %d\n", y);
+    return 0;
+}

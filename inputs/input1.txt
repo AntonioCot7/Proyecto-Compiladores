@@ -1,0 +1,17 @@
+#include <stdio.h>
+
+typedef int numero;
+
+numero fib(numero n) {
+        return (n < 2) ? n : fib(n - 1) + fib(n - 2);
+}
+
+int main() {
+    numero i;
+    i = 0;
+    while (i < 10) {
+        printf("Fib(%d) = %d\n", i, fib(i));
+        i = i + 1;
+    }
+    return 0;
+}
