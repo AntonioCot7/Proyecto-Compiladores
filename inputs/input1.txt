@@ -1,11 +1,8 @@
 #include <stdio.h>
-
 typedef int numero;
-
 numero fib(numero n) {
         return (n < 2) ? n : fib(n - 1) + fib(n - 2);
 }
-
 int main() {
     numero i;
     i = 0;

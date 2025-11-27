@@ -16,15 +16,14 @@ using namespace std;
 // ==========================================
 static unordered_map<string, vector<pair<string, string>>> global_struct_defs;
 
-// Helper para valores por defecto
-// Helper recursivo para inicializar variables vacías
+// Función recursiva para crear un Value por defecto dado un tipo
 Value createDefaultValue(const string& type) {
-    // 1. Tipos Básicos
+    // Tipos Básicos
     if (type == "int" || type == "long") return Value::make_int(0);
     if (type.find("unsigned") != string::npos || type == "uint") return Value::make_unsigned(0);
     if (type == "bool") return Value::make_bool(false);
     
-    // 2. Structs
+    // Structs
     // Si el tipo existe en nuestro registro de structs...
     if (global_struct_defs.find(type) != global_struct_defs.end()) {
         vector<Value> fieldValues;
@@ -36,14 +35,13 @@ Value createDefaultValue(const string& type) {
             // Llamada recursiva: si el campo es otro struct, se construirá correctamente
             fieldValues.push_back(createDefaultValue(fieldType));
         }
-        
+
         // Retornamos el Struct ya armado
         return Value::make_struct(fieldValues, type);
     }
-
-    // Default fallback (por si acaso)
     return Value::make_int(0);
 }
+
 ///////////////////////////////////////////////////////////////////////////////////
 //                    SECCIÓN 1: MÉTODOS accept()
 ///////////////////////////////////////////////////////////////////////////////////
@@ -357,14 +355,14 @@ int EvalVisitor::visit(IdExp* exp) {
     std::istringstream ss(name);
     while (getline(ss, token, '.')) parts.push_back(token);
 
-    // 1. Obtener la variable raíz
+    // Obtener la variable raíz
     if (!env.check(parts[0])) {
         cerr << "Error: Variable '" << parts[0] << "' no encontrada." << endl;
         exit(1);
     }
     Value v = env.lookup(parts[0]);
 
-    // 2. Navegar por los campos
+    // Navegar por los campos
     for (size_t i = 1; i < parts.size(); ++i) {
         if (v.kind != Value::STRUCT) { 
             cerr << "Error: '" << parts[i-1] << "' no es un struct." << endl; 
@@ -399,7 +397,7 @@ int EvalVisitor::visit(IdExp* exp) {
         v = v.fields[index];
     }
 
-    // 3. Retornar el valor final
+    // Retornar el valor final
     last_value = v;
     last_value_valid = true;
     if (v.kind == Value::INT) return v.i;
@@ -433,14 +431,13 @@ int EvalVisitor::visit(FcallExp* fcall) {
         env.add_var(func->params[i]->id, argValues[i]);
     }
     
-    // Reset struct return state before executing function
     return_struct_valid = false;
     func->body->accept(this);
     
     int ret = return_value;
     env.remove_level();
     
-    // Prioridad: Si hubo retorno de struct explícito, úsalo
+    // Si hubo retorno de struct explícito, úsalo
     if (return_struct_valid) {
         last_value = return_struct;
         last_value_valid = true;
@@ -486,9 +483,7 @@ int EvalVisitor::visit(StructDec* sd) {
 int EvalVisitor::visit(TypedefDec* td) { return 0; }
 
 int EvalVisitor::visit(TernaryExp* exp) {
-    // Evaluar condición
     int cond = exp->condition->accept(this);
-    // Evaluar solo la rama necesaria (Lazy evaluation)
     if (cond) {
         return exp->trueExp->accept(this);
     } else {
@@ -535,7 +530,7 @@ int EvalVisitor::visit(FunDec* fd) { return 0; }
 int EvalVisitor::visit(Include* inc) { return 0; }
 
 int EvalVisitor::visit(AssignStm* stm) {
-    // 1. Evaluar el valor a asignar (RHS)
+    // Evaluar el valor a asignar (RHS)
     last_value_valid = false;
     int val = stm->e->accept(this);
     Value newVal = last_value_valid ? last_value : Value::make_int(val);
@@ -749,9 +744,9 @@ int GenCodeVisitor::visit(Program* p) {
     out << ".text" << endl;
     out << ".global main" << endl;
 
-    // 1. Structs (offsets)
+    // Structs (offsets)
     for (auto s : p->strlist) s->accept(this);
-    // 2. Funciones
+    // Funciones
     for (FunDec* fd : p->fdlist) fd->accept(this);
     
     out << ".section .note.GNU-stack,\"\",@progbits" << endl;
@@ -831,8 +826,6 @@ int GenCodeVisitor::visit(FunDec* fd) {
                 out << "    movq " << regs[i] << ", %rax" << endl;  // Dirección en %rax
                 
                 // Copiar cada campo en orden de offset: 0, 8, 16, ...
-                // PERO: los offsets están en memoria del stack que crece hacia abajo
-                // Necesitamos usar offsets NEGATIVOS para acceder via pointer
                 vector<pair<int, string>> orderedFields;
                 for (auto& field : structLayouts[pType]) {
                     orderedFields.push_back({field.second, field.first});  // {offset, fieldName}
@@ -882,7 +875,6 @@ int GenCodeVisitor::visit(FunDec* fd) {
 }
 
 int GenCodeVisitor::visit(Body* body) {
-    // Ahora Body es mucho más limpio: simplemente delega la visita
     for (VarDec* vd : body->declarations) vd->accept(this);
     for (InstanceDec* ind : body->intances) ind->accept(this);
     for (Stm* stm : body->stmList) stm->accept(this);
@@ -1088,26 +1080,18 @@ int GenCodeVisitor::visit(BinaryExp* exp) {
         out << "    movq $" << exp->valor << ", %rax" << endl;
         return 0;
     }
-    
     // MANTENEMOS LA LÓGICA DE SETHI-ULLMAN (Decidir orden basado en 'et')
-    
     // CASO 1: El hijo derecho es "ligero" (hoja o llamada simple).
     if (exp->right->et == 0) {
         // Orden: Izquierda -> Derecha
-        exp->left->accept(this);        // Evaluar Izquierda (%rax)
-        
-        // CORRECCIÓN: Usamos la PILA en lugar de %rcx. 
-        // Esto protege el valor si la derecha es una llamada a función (como fib).
+        exp->left->accept(this);
         out << "    pushq %rax" << endl; 
-        
-        exp->right->accept(this);       // Evaluar Derecha (%rax)
-        
-        out << "    movq %rax, %rcx" << endl; // Mover Derecha a %rcx
-        out << "    popq %rax" << endl;       // Recuperar Izquierda a %rax
+        exp->right->accept(this);
+        out << "    movq %rax, %rcx" << endl;
+        out << "    popq %rax" << endl;
     }
     // CASO 2: El hijo izquierdo es más pesado o igual.
     else if (exp->left->et >= exp->right->et) {
-        // Orden: Izquierda -> Derecha (Protegido por pila)
         exp->left->accept(this);
         out << "    pushq %rax" << endl;
         exp->right->accept(this);
@@ -1116,34 +1100,22 @@ int GenCodeVisitor::visit(BinaryExp* exp) {
     }
     // CASO 3: El hijo derecho es más pesado (Optimización real de S-U).
     else {
-        // Orden: Derecha -> Izquierda (Invertimos para ahorrar recursos)
         exp->right->accept(this);       
-        out << "    pushq %rax" << endl; // Guardamos Derecha
-        exp->left->accept(this);        // Evaluamos Izquierda (%rax)
-        out << "    popq %rcx" << endl;  // Recuperamos Derecha en %rcx
-        
-        // Nota: Ahora tenemos:
-        // %rax = Izquierda
-        // %rcx = Derecha
-        // El orden de los registros está listo para operar.
+        out << "    pushq %rax" << endl;
+        exp->left->accept(this);
+        out << "    popq %rcx" << endl;
     }
 
-    // OPERACIONES (Idéntico a antes, pero seguro)
+    // OPERACIONES
     switch (exp->op) {
         case PLUS_OP: out << "    addq %rcx, %rax" << endl; break;
         case MUL_OP:  out << "    imulq %rcx, %rax" << endl; break;
         case MINUS_OP: 
-            // subq A, B -> B = B - A.
-            // Queremos Izq - Der.
-            // Tenemos: B=%rax(Izq), A=%rcx(Der).
             out << "    subq %rcx, %rax" << endl; 
             break;
         case DIV_OP: 
-            // idivq divide %rdx:%rax entre el operando.
-            // Queremos: Izq / Der.
-            // Tenemos: %rax(Izq), %rcx(Der).
-            out << "    cqo" << endl;             // Extender signo de %rax a %rdx
-            out << "    idivq %rcx" << endl;      // %rax = %rax / %rcx
+            out << "    cqo" << endl;
+            out << "    idivq %rcx" << endl;
             break;
             
         // Comparaciones
@@ -1153,8 +1125,7 @@ int GenCodeVisitor::visit(BinaryExp* exp) {
         case LT_OP:
         case GE_OP:
         case LE_OP:
-            out << "    cmpq %rcx, %rax" << endl; // Compara Izq con Der
-            
+            out << "    cmpq %rcx, %rax" << endl;
             if (exp->op == EQ_OP) out << "    sete %al" << endl;
             if (exp->op == NE_OP) out << "    setne %al" << endl;
             if (exp->op == GT_OP) out << "    setg %al" << endl;
@@ -1213,29 +1184,24 @@ int GenCodeVisitor::visit(IfStm* stm) {
     // CASO 1: La condición es CONSTANTE (Optimizacion)
     if (stm->condition->cont == 1) {
         if (stm->condition->valor != 0) {
-            // Es TRUE: Solo generamos el código del THEN
-            // El código del ELSE se descarta (dead code)
             stm->thenBody->accept(this);
         } else {
-            // Es FALSE: Solo generamos el código del ELSE (si existe)
-            // El código del THEN se descarta
             if (stm->elseBody) {
                 stm->elseBody->accept(this);
             }
         }
-        return 0; // No generamos saltos ni cmps
+        return 0;
     }
-
     // CASO 2: La condición es DINÁMICA (Normal)
     int id = count_if++;
     string labelElse = "if_" + to_string(id) + "_else";
     string labelEnd = "if_" + to_string(id) + "_end";
-    stm->condition->accept(this); // Evalúa condición en %rax
+    stm->condition->accept(this);
     out << "    cmpq $0, %rax" << endl;
-    out << "    je " << labelElse << endl; // Salta al else si es falso
+    out << "    je " << labelElse << endl;
     // Bloque THEN
     stm->thenBody->accept(this);
-    out << "    jmp " << labelEnd << endl; // Salta al final
+    out << "    jmp " << labelEnd << endl;
     // Bloque ELSE
     out << labelElse << ":" << endl;
     if (stm->elseBody) {

@@ -14,8 +14,8 @@ public:
     enum TType { NOTYPE, VOID, INT, BOOL, UNSIGNED, FLOAT, STRUCT };
     enum { TYPE_NAME_COUNT = 7 };
     static const char* type_names[TYPE_NAME_COUNT];
-    // For struct types
-    std::string struct_name;
+    // Para struct types
+    string struct_name;
 
     TType ttype;
 
@@ -49,8 +49,6 @@ public:
         if (s == "float") return FLOAT;
         return NOTYPE;
     }
-
-
 };
 
 inline const char* Type::type_names[Type::TYPE_NAME_COUNT] = { "notype", "void", "int", "bool", "unsigned", "float", "struct" };

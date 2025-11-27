@@ -44,7 +44,7 @@ public:
     virtual void visit(FunDec* f) = 0;
     virtual void visit(ParamDec* p) = 0;
 
-    // Structs and initializers
+    // Structs y typedefs
     virtual void visit(StructDec* sd) = 0;
     virtual Type* visit(StructInit* s) = 0;
     virtual Type* visit(InitData* id) = 0;
@@ -85,18 +85,16 @@ private:
     Type* boolType;
     Type* voidType;
     Type* floatType;
-    // Struct registry: struct name -> map(field name -> Type*)
+    // Guarda la definición de interna de los structs. Ej: "Punto" -> { "x"->int, "y"->int }
     unordered_map<string, unordered_map<string, Type*>> structs;
-    // Quick lookup for struct Type*
+    // Guarda el objeto tipo geneal del struct para búsquedas rápidas
     unordered_map<string, Type*> struct_types;
-    // Typedef registry: alias -> Type*
+    // Typedef registro: alias -> Type*
     unordered_map<string, Type*> typedefs;
     // Field types in declaration order for each struct
     unordered_map<string, vector<Type*>> struct_field_order;
-
     // Registro de funciones
     void add_function(FunDec* fd);
-
 public:
     TypeChecker();
 

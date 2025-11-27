@@ -22,7 +22,7 @@ static vector<string> split(const string &s, char delimiter) {
 }
 
 // ===========================================================
-//   Accepts (Boilerplate)
+//   Accepts
 // ===========================================================
 Type* NumberExp::accept(TypeVisitor* v) { return v->visit(this); }
 Type* FloatExp::accept(TypeVisitor* v) { return v->visit(this); }
@@ -94,21 +94,19 @@ void TypeChecker::typecheck(Program* program) {
 }
 
 void TypeChecker::visit(Program* p) {
-    // 1. Registrar Typedefs PRIMERO (para que los structs puedan usar alias como 'money')
+
     for (auto td : p->tdlist) td->accept(this);
 
-    // 2. Registrar Structs DESPUÉS
     for (auto sd : p->strlist) sd->accept(this);
 
-    // 3. Registrar Funciones
     for (auto f : p->fdlist) add_function(f);
 
     env.add_level();
-    // 4. Variables globales
+
     for (auto v : p->vdlist) v->accept(this);
     for (auto ind : p->intdlist) ind->accept(this);
     
-    // 5. Cuerpos de funciones
+    
     for (auto f : p->fdlist) f->accept(this);
     
     env.remove_level();
@@ -116,7 +114,6 @@ void TypeChecker::visit(Program* p) {
 
 void TypeChecker::visit(Body* b) {
     env.add_level();
-    // Importante: procesar typedefs locales primero
     for (auto td : b->tdlist) td->accept(this);
     
     for (auto v : b->declarations) v->accept(this);
@@ -135,9 +132,8 @@ void TypeChecker::visit(StructDec* sd) {
         exit(1);
     }
 
-    unordered_map<string, Type*> fields;
-    vector<Type*> order;
-
+    unordered_map<string, Type*> fields; // campo nombre -> Type*
+    vector<Type*> order; // para registrar orden de campos
     for (VarDec* vd : sd->VdList) {
         Type* baseType = new Type();
         if (!baseType->set_basic_type(vd->type)) {
@@ -150,8 +146,8 @@ void TypeChecker::visit(StructDec* sd) {
             if (fields.count(fieldName)) { cerr << "Error: campo duplicado '" << fieldName << "'" << endl; exit(1); }
             fields[fieldName] = baseType;
             order.push_back(baseType);
-            // collect names in order for runtime registry
-            // we'll register names after building all fields
+            // Nota: asume que los campos se declaran una sola vez
+            // Ademas registrar nombres en orden para el registry en runtime
         }
     }
 

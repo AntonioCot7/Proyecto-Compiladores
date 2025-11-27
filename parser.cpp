@@ -70,7 +70,7 @@ Program* Parser::parseProgram() {
         }
     }
 
-    // 2. Parsear Typedefs y Structs (ANTES de variables/funciones)
+    // Parsear Typedefs y Structs (ANTES de variables/funciones)
     // Se ejecuta mientras encuentre 'typedef' o 'struct'
     while (check(Token::TYPEDEF) || check(Token::STRUCT)) {
         if (check(Token::TYPEDEF)) {
@@ -88,16 +88,11 @@ Program* Parser::parseProgram() {
                 p->tdlist.push_back(td);
             }
         } else if (check(Token::STRUCT)) {
-             // struct Name { ... };
-             // Nota: parserStructDec espera que ya se haya consumido 'struct' si no es typedef
-             // Como tu parserStructDec empieza con match(STRUCT), no consumimos aquí.
-             // PERO tu parserStructDec actual asume typedef antes. 
-             // Ajuste rápido: asumiendo que struct suelta también es válida:
             p->strlist.push_back(parserStructDec());
         }
     }
 
-    // 3. Parsear Declaraciones Globales y Funciones
+    // Parsear Declaraciones Globales y Funciones
     // Ahora aceptamos ID (tipos personalizados) como inicio
     while (check(Token::INT) || check(Token::LONG) || check(Token::FLOAT) || check(Token::UNSIGNED) || check(Token::ID)) {
         
@@ -132,7 +127,7 @@ Program* Parser::parseProgram() {
             InstanceDec* id_dec = paserInstanceDecFrom(tipo, id); // Usar tu helper
             p->intdlist.push_back(id_dec);
             if (!match(Token::SEMICOL)) throw runtime_error("Falta ';'");
-        } 
+        }
         else if (check(Token::SEMICOL) || check(Token::COMMA)) {
             // Variable global: Tipo ID;
             VarDec* vd = parseVarDecFrom(tipo, id); // Usar tu helper
@@ -164,12 +159,10 @@ Include* Parser::parseInclude() {
     return inc;
 }
 
-
 StructDec* Parser::parserStructDec() {
     StructDec* Std = new StructDec();
     match(Token::STRUCT);
     match(Token::LBRACE);
-
     // VarDecList: uno o más VarDec terminados en ';'
     while (!check(Token::RBRACE)) {
         VarDec* vd = parseVarDec();
@@ -178,19 +171,14 @@ StructDec* Parser::parserStructDec() {
             throw runtime_error("Error sintáctico: se esperaba ';' después de la declaración de variable en struct");
         }
     }
-
     match(Token::RBRACE);
     match(Token::ID);
     Std->nombre = previous->text;
-
     if (!match(Token::SEMICOL)) {
         throw runtime_error("Error sintáctico: se esperaba ';' después de la declaración de struct");
     }
-
     return Std;
 }
-
-
 
 VarDec* Parser::parseVarDec(){
     VarDec* vd = new VarDec();
@@ -232,12 +220,9 @@ InstanceDec* Parser::paserInstanceDec() {
 }
 
 InitData* Parser::parserInitData() {
-
     InitData* data = new InitData();
-
     if( check(Token::LBRACE) ){
         match(Token::LBRACE);
-
         StructInit* estructura = new StructInit(); 
         if (!check(Token::RBRACE)) {
             estructura->argumentos.push_back(parseCE());
@@ -255,29 +240,6 @@ InitData* Parser::parserInitData() {
         data->st = nullptr;
         return data;
     }
-}
-
-FunDec* Parser::parseFunDec() {
-    FunDec* fd = new FunDec();
-    fd->type = parseType();
-    match(Token::ID);
-    fd->id = previous->text;
-    match(Token::LPAREN);
-    if(check(Token::INT) || check(Token::LONG) || check(Token::UNSIGNED)) {
-        while(true) {
-            string ptipos = parseType();
-            match(Token::ID);
-            string pnombres = previous->text;
-            ParamDec* pd = new ParamDec(ptipos, pnombres);
-            fd->params.push_back(pd);
-            if (!match(Token::COMMA)) {
-                break;
-            }
-        }
-    }
-    match(Token::RPAREN);
-    fd->body = parseBody();
-    return fd;
 }
 
 Body* Parser::parseBody() {
@@ -315,8 +277,6 @@ Body* Parser::parseBody() {
         } 
         // Caso ambiguo: Empieza con ID (puede ser "Punto p;" o "x = 5;")
         else if (check(Token::ID)) {
-            // Truco: Mirar el siguiente token sin avanzar permanentemente 
-            // O avanzar y decidir.
             Token* posibleTipo = current;
             advance(); // Consumimos el primer ID (ej: "Punto" o "x")
 
@@ -338,25 +298,14 @@ Body* Parser::parseBody() {
             } else {
                 // Tenemos "ID =" o "ID ." -> Es una sentencia (assignment)
                 // NO es una declaración. Terminamos el bucle de declaraciones.
-                
-                // IMPORTANTE: Ya consumimos el primer ID ("x"). 
-                // Debemos reconstruir la sentencia a partir de ahí.
-                // Como parseStm espera ver el ID, retroceder seria ideal, 
-                // pero si no puedes, parseamos el resto manualmente:
-                
                 string lvalueName = posibleTipo->text;
-                // Manejar acceso a campos .x .y
                 while (match(Token::DOT)) {
                     if(!match(Token::ID)) throw runtime_error("ID esperado tras punto");
                     lvalueName += "." + previous->text;
                 }
-
                 if (!match(Token::ASSIGN)) throw runtime_error("Se esperaba '=' en asignación");
-                
                 Exp* e = parseCE();
                 if (!match(Token::SEMICOL)) throw runtime_error("Falta ';'");
-                
-                // Agregamos esta primera sentencia a la lista y salimos para parsear las demás
                 b->stmList.push_back(new AssignStm(lvalueName, e));
                 break; 
             }
@@ -376,8 +325,6 @@ Body* Parser::parseBody() {
     return b;
 }
 
-// En parser.cpp -> Reemplaza la función parseStm completa
-
 Stm* Parser::parseStm() {
     Stm* a;
     Exp* e;
@@ -395,7 +342,7 @@ Stm* Parser::parseStm() {
             throw runtime_error("Error sintáctico: se esperaba '=' después del identificador '" + variable + "'");
         }
         e = parseCE();
-        if (check(Token::SEMICOL)) match(Token::SEMICOL); // Consumir ; opcionalmente para robustez
+        if (check(Token::SEMICOL)) match(Token::SEMICOL);
         return new AssignStm(variable, e);
     }
     else if (match(Token::PRINTF)) {
@@ -435,52 +382,34 @@ Stm* Parser::parseStm() {
         tb = parseBody();
         return new WhileStm(e, tb);
     }
-    // ==========================================
-    // CORRECCIÓN DEL FOR
-    // ==========================================
     else if (match(Token::FOR)) {
         match(Token::LPAREN);
-        
         Stm* init = nullptr;
-
         // Verificamos TODOS los tipos posibles para saber si es declaración
         if (check(Token::INT) || check(Token::LONG) || check(Token::UNSIGNED) || 
             check(Token::TYPEDEF) || check(Token::STRUCT) || check(Token::ID)) {
-            
-            // Truco para desambiguar ID: ¿Es tipo (typedef) o variable?
             // Si es ID y el siguiente es ID, es declaración (Ej: uint n).
             // Si es ID y el siguiente es =, ., etc, es asignación.
             bool esDeclaracion = true;
-            if (current->type == Token::ID) {
-                // Mirar adelante es difícil sin peek(), asumimos asignación si no estamos seguros
-                // PERO, en tu caso, si el check(INT) funciona, entra aquí.
-            }
-
             if (check(Token::ID) && !check(Token::INT) && !check(Token::UNSIGNED)) {
-                 // Caso borde: "i = 0". parseStm maneja esto.
+                // Caso borde: "i = 0". parseStm maneja esto.
                 init = parseStm();
             } else {
                  // Caso declaración: "int i = 0"
                 init = paserInstanceDec();
-                 // Consumir el ; del inicializador obligatoriamente
                 if (check(Token::SEMICOL)) match(Token::SEMICOL);
             }
         } else {
-            // Caso fallback (ej: vacío)
             init = parseStm();
         }
-
         // Asegurar que el primer ; se consumió
         if (check(Token::SEMICOL)) match(Token::SEMICOL);
-
         Exp* condition = parseCE();
         match(Token::SEMICOL); // Segundo ;
-        
         // Parsear paso (Step)
         match(Token::ID);
         IdExp* var = new IdExp(previous->text);
         StepExp* step = nullptr;
-        
         if (match(Token::INC)) step = new StepExp(var, StepExp::INCREMENT);
         else if (match(Token::DEC)) step = new StepExp(var, StepExp::DECREMENT);
         else if (match(Token::PLUS_ASSIGN)) {
@@ -500,10 +429,8 @@ Stm* Parser::parseStm() {
         Body* body = parseBody();
         return new ForStm(init, condition, step, body);
     }
-    // ==========================================
 
     else {
-        // Aquí es donde saltaba tu error "se encontró int"
         string tokenInfo = isAtEnd() ? "fin de archivo" : ("token '" + current->text + "'");
         throw runtime_error("Error sintáctico: se esperaba un statement pero se encontró " + tokenInfo);
     }

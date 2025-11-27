@@ -9,7 +9,7 @@
 
 using namespace std;
 
-// Runtime value used by EvalVisitor and Environment
+// Valor en tiempo de ejecución usado por EvalVisitor y Environment
 struct Value {
     enum Kind { INT, UNSIGNED, BOOL, FLOAT, STRUCT } kind;
     int i;
@@ -156,7 +156,7 @@ public:
     int visit(TernaryExp* exp) override;
 };
 
-// --- GEN CODE VISITOR ACTUALIZADO ---
+// --- GENCODE VISITOR ---
 class GenCodeVisitor : public Visitor {
 private:
     std::ostream& out;
